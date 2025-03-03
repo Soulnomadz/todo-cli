@@ -6,5 +6,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.96"
 salvo = "0.76.2"
+serde_json = "1.0.139"
 tokio = "1.43.0"
 tracing-subscriber = "0.3.19"

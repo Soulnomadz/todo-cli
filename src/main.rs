@@ -9,15 +9,18 @@ struct Todo {
 
 impl Todo {
     fn new() -> Result<Todo> {
-        let content = std::fs::read_to_string("db.txt").context("打开失败!")?;
+        let content = std::fs::read_to_string("db.json").context("打开失败!")?;
 
-        let map = content.lines()
-            .map(|line| line.splitn(2, '\t').collect::<Vec<_>>())
-            .map(|v| (v[0].to_string(), v[1].parse::<bool>().unwrap()))
-            .collect();
-
-        // println!("map now is: {:?}", map);
-        Ok(Todo { map })
+        match serde_json::from_str(&content) {
+            Ok(map) => Ok(Todo { map }),
+            Err(e) => {
+                if e.is_eof() {
+                    Ok(Todo { map: HashMap::new() })
+                } else {
+                    Err(anyhow::anyhow!("解析失败! {}", e))
+                }
+            }
+        }
     }
 
     fn insert(&mut self, key: String) {
@@ -25,13 +28,8 @@ impl Todo {
     }
 
     fn save(self) -> Result<()> {
-        let mut content = String::new();
-
-        for (key, val) in self.map {
-            let rec = format!("{}\t{}\n", key, val);
-            content.push_str(&rec);
-        }
-        std::fs::write("db.txt", content).context("持久化失败!")?;
+        let content = serde_json::to_string_pretty(&self.map).context("持久化失败!")?;
+        std::fs::write("db.json", content).context("数据库写入失败!")?;
 
         Ok(())
     }
@@ -44,11 +42,14 @@ impl Todo {
     }
 }
 
+// 参考：
+// https://www.freecodecamp.org/news/how-to-build-a-to-do-app-with-rust/
+// 
+
 fn main() -> Result<()> {
     let action = std::env::args().nth(1).unwrap();
 
     let mut todo = Todo::new().context("初始化失败!")?;
-    // println!("todo now is: {:?}", todo);
 
     match action.as_str() {
         "add" => {
@@ -87,7 +88,6 @@ fn main() -> Result<()> {
             }
         },
         _ => println!("不支持的操作!"),
-
     }
 
     Ok(())
